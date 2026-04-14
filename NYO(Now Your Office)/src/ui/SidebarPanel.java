@@ -28,21 +28,11 @@ import javax.swing.border.LineBorder;
  * 이 패널은 "화면 조립"만 담당합니다.
  * 실제 근무지 추가/수정/삭제나 필터 적용은 여기서 직접 하지 않고,
  * 버튼/목록 선택 이벤트를 바깥(WorkerCalendarAppFinal)으로 전달합니다.
- *
- * 초보 팀원 수정 포인트:
- * - 카드 순서/배치 바꾸기: 생성자 내부 UI 조립 순서 수정
- * - 버튼 모양 바꾸기: styleActionButton(...)
- * - 카드 공통 스타일 바꾸기: createCardPanel(...)
- * - 리스트 선택 동작 바꾸기: categoryList 리스너 부분
  */
 public class SidebarPanel extends JPanel {
 
     /**
      * 사이드바 내부 버튼/리스트 이벤트를 외부로 전달하기 위한 인터페이스입니다.
-     *
-     * 주의:
-     * - 여기서는 "눌렸음/선택됐음"만 알립니다.
-     * - 실제 데이터 처리 로직은 바깥 클래스가 담당합니다.
      */
     public interface SidebarListener {
         void onAddWorkplace();
@@ -55,16 +45,10 @@ public class SidebarPanel extends JPanel {
     private final JList<String> categoryList;
     private boolean updatingCategoryData;
     private final JLabel filterTitleLabel;
-
     private final SidebarListener listener;
 
     /**
      * 사이드바를 구성합니다.
-     *
-     * 전달받는 salaryCardPanel / graphSectionPanel은
-     * DashboardPanel에서 만든 패널을 그대로 재사용하는 구조입니다.
-     * 즉, 이 클래스가 급여 계산/그래프를 만드는 것이 아니라
-     * "어디에 배치할지"만 결정합니다.
      */
     public SidebarPanel(
             Color background,
@@ -85,34 +69,37 @@ public class SidebarPanel extends JPanel {
         setBackground(background);
         setBorder(new EmptyBorder(0, 0, 0, 0));
 
+        // 메인 컨텐츠 컨테이너 (세로 배치)
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBackground(background);
         content.setBorder(new EmptyBorder(8, 8, 8, 8));
 
+        // 1. 프로필 카드
         JPanel profileCard = createCardPanel();
         JLabel welcome = new JLabel(userName + "님");
         welcome.setFont(new Font("맑은 고딕", Font.BOLD, 18));
         welcome.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
         JLabel subtitle = new JLabel("이번 달 근무와 급여를 한눈에 확인하세요");
         subtitle.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
         subtitle.setForeground(new Color(107, 114, 128));
         subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
         profileCard.add(welcome);
         profileCard.add(Box.createVerticalStrut(4));
         profileCard.add(subtitle);
         content.add(profileCard);
         content.add(Box.createVerticalStrut(12));
 
+        // 2. 급여 요약 카드 (Dashboard에서 전달받음)
         if (salaryCardPanel != null) {
             salaryCardPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
             content.add(salaryCardPanel);
             content.add(Box.createVerticalStrut(12));
         }
 
-        // 근무지 목록(JList) 설정
-        // 이 리스트에서 선택된 문자열은 나중에 WorkerCalendarAppFinal에서
-        // "어떤 근무지를 필터링할지" 판단하는 데 사용됩니다.
+        // 3. 근무지 필터 카드
         categoryList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         categoryList.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
         categoryList.setFixedCellHeight(34);
@@ -121,6 +108,7 @@ public class SidebarPanel extends JPanel {
         categoryList.setSelectionBackground(new Color(239, 246, 255));
         categoryList.setSelectionForeground(new Color(30, 64, 175));
         categoryList.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        
         categoryList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && !updatingCategoryData && listener != null) {
                 listener.onCategorySelected(categoryList.getSelectedValue());
@@ -133,10 +121,12 @@ public class SidebarPanel extends JPanel {
         filterTitleLabel = new JLabel("근무지 필터");
         filterTitleLabel.setFont(new Font("맑은 고딕", Font.BOLD, 13));
         filterTitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
         JLabel filterSubtitle = new JLabel("선택한 근무지만 캘린더에 표시됩니다");
         filterSubtitle.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
         filterSubtitle.setForeground(new Color(107, 114, 128));
         filterSubtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
         filterCard.add(filterTitleLabel);
         filterCard.add(Box.createVerticalStrut(4));
         filterCard.add(filterSubtitle);
@@ -149,10 +139,12 @@ public class SidebarPanel extends JPanel {
         scroll.setBorder(new LineBorder(new Color(229, 231, 235)));
         scroll.getViewport().setBackground(Color.WHITE);
         scroll.getVerticalScrollBar().setUnitIncrement(14);
+        
         filterCard.add(scroll);
         content.add(filterCard);
         content.add(Box.createVerticalStrut(12));
 
+        // 4. 근무지 관리 카드 (버튼 3종)
         JButton addBtn = new JButton("추가");
         JButton editBtn = new JButton("수정");
         JButton deleteBtn = new JButton("삭제");
@@ -161,13 +153,6 @@ public class SidebarPanel extends JPanel {
         styleActionButton(editBtn, Color.WHITE, new Color(55, 65, 81));
         styleActionButton(deleteBtn, Color.WHITE, new Color(220, 38, 38));
 
-        addBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        editBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        deleteBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        addBtn.setMaximumSize(new Dimension(Short.MAX_VALUE, 36));
-        editBtn.setMaximumSize(new Dimension(Short.MAX_VALUE, 36));
-        deleteBtn.setMaximumSize(new Dimension(Short.MAX_VALUE, 36));
-
         addBtn.addActionListener(e -> listener.onAddWorkplace());
         editBtn.addActionListener(e -> listener.onEditWorkplace());
         deleteBtn.addActionListener(e -> listener.onDeleteWorkplace());
@@ -175,24 +160,23 @@ public class SidebarPanel extends JPanel {
         JPanel actionCard = createCardPanel();
         JLabel actionTitle = new JLabel("근무지 관리");
         actionTitle.setFont(new Font("맑은 고딕", Font.BOLD, 13));
-        // BoxLayout 안에서는 setAlignmentX(...)가 컴포넌트의 붙는 기준점을 정합니다.
-        // 제목을 더 확실히 왼쪽 정렬하고 싶으면 setHorizontalAlignment(SwingConstants.LEFT)를
-        // 추가로 줄 수 있습니다.
         actionTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
         actionCard.add(actionTitle);
         actionCard.add(Box.createVerticalStrut(10));
 
-        // 관리 버튼은 세로 공간을 줄이기 위해 1행 3열로 배치합니다.
         JPanel actionRow = new JPanel(new GridLayout(1, 3, 8, 0));
         actionRow.setOpaque(false);
         actionRow.setMaximumSize(new Dimension(Short.MAX_VALUE, 36));
         actionRow.add(addBtn);
         actionRow.add(editBtn);
         actionRow.add(deleteBtn);
+        
         actionCard.add(actionRow);
         content.add(actionCard);
         content.add(Box.createVerticalStrut(12));
 
+        // 5. 통계 그래프 섹션 (Dashboard에서 전달받음)
         if (graphSectionPanel != null) {
             graphSectionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
             content.add(graphSectionPanel);
@@ -203,9 +187,6 @@ public class SidebarPanel extends JPanel {
 
     /**
      * 근무지 리스트 데이터를 갱신합니다.
-     *
-     * selectedValue를 넘기지 않으면 현재 선택값을 최대한 유지하려고 시도합니다.
-     * 사이드바 갱신 시 필터가 자꾸 풀리지 않도록 만든 메서드입니다.
      */
     public void updateCategoryData(List<String> newData) {
         updateCategoryData(newData, null);
@@ -239,10 +220,7 @@ public class SidebarPanel extends JPanel {
     }
 
     /**
-     * 사이드바 내부 카드 공통 스타일입니다.
-     *
-     * 카드 모서리, 여백, 테두리 톤을 한 번에 통일하기 위한 메서드입니다.
-     * 사이드바 전체 톤을 바꾸고 싶을 때는 이 메서드를 먼저 보면 됩니다.
+     * 사이드바 내부 카드 공통 스타일 설정
      */
     private JPanel createCardPanel() {
         JPanel panel = new JPanel();
@@ -257,10 +235,7 @@ public class SidebarPanel extends JPanel {
     }
 
     /**
-     * 관리 버튼 공통 스타일입니다.
-     *
-     * 버튼 색/테두리/폰트/둥근 정도를 통일합니다.
-     * "추가/수정/삭제" 버튼 분위기를 바꾸고 싶으면 이 메서드를 수정하면 됩니다.
+     * 관리 버튼 공통 스타일 설정
      */
     private void styleActionButton(JButton button, Color backgroundColor, Color foregroundColor) {
         button.setBackground(backgroundColor);
@@ -270,10 +245,12 @@ public class SidebarPanel extends JPanel {
         button.setBorder(BorderFactory.createCompoundBorder(
                 new LineBorder(backgroundColor.equals(Color.WHITE) ? new Color(209, 213, 219) : backgroundColor, 1, true),
                 new EmptyBorder(10, 12, 10, 12)));
+        
         if (backgroundColor.equals(Color.WHITE)) {
             button.setOpaque(true);
             button.setContentAreaFilled(true);
         }
+        
         button.putClientProperty("JButton.buttonType", "roundRect");
         UIManager.put("Button.arc", 14);
     }

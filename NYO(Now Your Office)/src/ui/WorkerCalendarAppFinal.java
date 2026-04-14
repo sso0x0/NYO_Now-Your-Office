@@ -235,7 +235,6 @@ public class WorkerCalendarAppFinal extends JFrame {
          this.contractType = "정규직";
          this.hourlyWage = 10030; // 2024년 최저시급 기준 초기화
          this.taxRate = 0.0;
-
       }
    }
 
@@ -337,7 +336,6 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    private void saveDataToFile() {
       try {
-
          FileOutputStream fos = new FileOutputStream(DATA_FILE);
          ObjectOutputStream oos = new ObjectOutputStream(fos);
 
@@ -556,10 +554,10 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 로그인 이후 필요한 메인 화면들을 초기화합니다.
-    * 
+    *
     * 역할: - DASHBOARD / MYPAGE / BOARD 카드를 mainContainer에 등록합니다. - 같은 카드가 여러 번 중복
     * 등록되지 않도록 최초 1회만 생성합니다.
-    * 
+    *
     * 왜 필요한가? - 로그인 성공 시, 마이페이지 저장 후 등 여러 지점에서 이 메서드가 호출될 수 있습니다. - 매번 add()를 반복하면
     * 화면 카드가 중복 생성되어 구조가 꼬일 수 있습니다.
     */
@@ -591,22 +589,25 @@ public class WorkerCalendarAppFinal extends JFrame {
       // 오른쪽 전체 영역
       JPanel rightContent = new JPanel(new BorderLayout(0, 10));
       rightContent.setBackground(colorBackgroundGray);
-      rightContent.add(createQuickActionPanel(), BorderLayout.NORTH);
+      // ★ 상단 버튼 패널은 CalendarPanel 헤더 우측으로 이동되어 여기서는 붙이지 않습니다.
 
       // =========================
-      // 2. 가운데 메인 영역
-      // 달력 + 하단 대시보드 카드/그래프를
-      // 세로로 배치하기 위한 래퍼 패널
+      // 가운데 메인 영역 (달력 + 하단 상세가 들어갈 공간)
       // =========================
       JPanel centerContent = new JPanel(new BorderLayout(0, 15));
       centerContent.setBackground(colorBackgroundGray);
 
       // =========================
-      // 3. 달력 패널 생성
+      // 달력 패널 생성 및 실제 동작 연결
+      // CalendarPanel 헤더 우측 버튼(통합 게시판/마이페이지/명세서 추출/로그아웃)의
+      // 실제 기능은 아래 CalendarPanelListener에서 구현합니다.
       // =========================
-      calendarPanel = new CalendarPanel(currentYear, currentMonth, currentDateString, selectedDateString,
-            colorBackgroundGray, colorCardWhite, colorTextDark, colorTossBlue, colorAccentRed, colorBorderLine,
-            colorPastelBlue, new CalendarPanel.CalendarPanelListener() {
+      calendarPanel = new CalendarPanel(
+            currentYear, currentMonth, currentDateString, selectedDateString,
+            colorBackgroundGray, colorCardWhite, colorTextDark, colorTossBlue,
+            colorAccentRed, colorBorderLine, colorPastelBlue,
+            new CalendarPanel.CalendarPanelListener() {
+
                @Override
                public void onPreviousMonth() {
                   currentMonth--;
@@ -632,14 +633,41 @@ public class WorkerCalendarAppFinal extends JFrame {
                @Override
                public void onScheduleClicked(String scheduleId, String dateString) {
                   selectedDateString = dateString;
-
-                  Shift existingShift = findShiftById(scheduleId);
-
-                  refreshCalendarView();
-                  openShiftEditDialog(existingShift, dateString);
+                  Shift clickedShift = findShiftById(scheduleId);
+                  if (clickedShift != null) {
+                     openShiftEditDialog(clickedShift, dateString);
+                  }
                }
-            });
 
+               // ==========================================
+               // 퀵 액션 버튼 실제 기능 구현
+               // ==========================================
+               @Override
+               public void onBoardClicked() {
+                  cardLayout.show(mainContainer, "BOARD");
+               }
+
+               @Override
+               public void onMyPageClicked() {
+                  refreshMyPageUserInfo();
+                  cardLayout.show(mainContainer, "MYPAGE");
+               }
+
+               @Override
+               public void onExportClicked() {
+                  executeSalaryExportToTextFile();
+               }
+
+               @Override
+               public void onLogoutClicked() {
+                  loggedInUser = null;
+                  selectedWorkplaceFilterId = null;
+                  cardLayout.show(mainContainer, "LOGIN");
+               }
+            }
+      );
+
+      // ★ 생성된 달력을 화면 중앙(centerContent)에 부착합니다.
       centerContent.add(calendarPanel, BorderLayout.CENTER);
 
       // 오른쪽 영역 중앙에 메인 콘텐츠 부착
@@ -833,14 +861,13 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 현재 로그인 사용자의 Shift 목록에서 날짜 기준으로 Shift를 찾음
-    * 
+    *
     * 실제 조회 로직은 ShiftManager에 위임
-    * 
+    *
     * @param dateString 찾을 날짜 문자열
     * @return 찾은 Shift, 없으면 null
     */
    private Shift findShiftByDate(String dateString) {
-      // 로그인 사용자가 없으면 찾을 수 없음
       if (loggedInUser == null) {
          return null;
       }
@@ -850,14 +877,13 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 현재 로그인 사용자의 Shift 목록에서 ID로 Shift를 찾음
-    * 
+    *
     * 실제 조회 로직은 ShiftManager에 위임
-    * 
+    *
     * @param shiftId 찾을 Shift ID
     * @return 찾은 Shift, 없으면 null
     */
    private Shift findShiftById(String shiftId) {
-      // 로그인 사용자가 없으면 찾을 수 없음
       if (loggedInUser == null) {
          return null;
       }
@@ -867,7 +893,7 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 일정 등록/수정 다이얼로그를 엽니다.
-    * 
+    *
     * 역할: - 실제 저장/삭제 흐름은 ShiftController에 위임합니다. - WorkerCalendarAppFinal은 이제 호출만
     * 담당합니다.
     */
@@ -1014,10 +1040,10 @@ public class WorkerCalendarAppFinal extends JFrame {
    // =========================================================================
    /**
     * 마이페이지 화면 패널을 생성합니다.
-    * 
+    *
     * 역할: - 실제 마이페이지 UI는 MyPagePanel에 위임합니다. - WorkerCalendarAppFinal은 저장 처리와 화면
     * 전환만 연결합니다.
-    * 
+    *
     * @return 마이페이지 패널
     */
    private JPanel createMyPagePanel() {
@@ -1037,17 +1063,15 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 현재 로그인 사용자 정보를 마이페이지 화면에 반영합니다.
-    * 
+    *
     * 역할: - myPagePanel이 존재할 때만 setUserInfo(...)를 호출합니다. - 로그인 사용자 정보가 바뀐 뒤 UI 동기화에
     * 사용합니다.
     */
    private void refreshMyPageUserInfo() {
-      // 마이페이지 패널이 아직 없으면 종료
       if (myPagePanel == null) {
          return;
       }
 
-      // 로그인 사용자가 없으면 종료
       if (loggedInUser == null) {
          return;
       }
@@ -1058,25 +1082,22 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 마이페이지에서 전달된 입력값을 실제 사용자 정보에 반영하고 저장합니다.
-    * 
+    *
     * 역할: - 회사명 / 계약 형태 / 시급 / 세금 정보를 사용자 객체에 반영합니다. - 기본 근무지 정보도 함께 동기화합니다. - 저장 후
     * 달력/대시보드도 새로고침합니다.
-    * 
+    *
     * @param formData 마이페이지 입력 데이터
     */
    private void handleMyPageSave(MyPagePanel.MyPageFormData formData) {
       try {
-         // 로그인 사용자 확인
          if (loggedInUser == null) {
             throw new IllegalStateException("로그인된 사용자가 없습니다.");
          }
 
-         // 입력값 반영
          loggedInUser.company = formData.getCompanyName();
          loggedInUser.contractType = formData.getContractType();
          loggedInUser.hourlyWage = Integer.parseInt(formData.getHourlyWageText());
 
-         // 세금 선택값 반영
          int selectedIndex = formData.getTaxDropdownIndex();
          if (selectedIndex == 0) {
             loggedInUser.taxRate = 0.0;
@@ -1086,13 +1107,8 @@ public class WorkerCalendarAppFinal extends JFrame {
             loggedInUser.taxRate = 0.0932;
          }
 
-         // 기본 근무지 정보 동기화
          syncDefaultWorkplaceFromUserInfo();
-
-         // 저장
          saveDataToFile();
-
-         // 화면 정보 다시 반영
          refreshMyPageUserInfo();
          refreshCalendarView();
 
@@ -1112,10 +1128,10 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 게시판 화면 패널을 생성합니다.
-    * 
+    *
     * 역할: - 실제 게시판 UI는 BoardPanel에 위임합니다. - WorkerCalendarAppFinal은 게시글 저장과 화면 전환만
     * 연결합니다.
-    * 
+    *
     * @return 게시판 패널
     */
    private JPanel createBoardPanel() {
@@ -1142,9 +1158,9 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * ShiftType enum을 UI 문자열로 변환
-    * 
+    *
     * 실제 변환 로직은 ShiftManager에 위임
-    * 
+    *
     * @param shiftType ShiftType enum
     * @return UI 문자열
     */
@@ -1153,13 +1169,10 @@ public class WorkerCalendarAppFinal extends JFrame {
    }
 
    /**
-    * UI 입력값(날짜/시간/근무유형 문자열)로 공식 백엔드 모델 Shift를 생성합니다.
-    */
-   /**
     * UI 입력값으로 Shift 객체 생성
-    * 
+    *
     * 실제 생성 로직은 ShiftManager에 위임
-    * 
+    *
     * @param shiftId         Shift ID
     * @param workplace       근무지
     * @param dateString      날짜 문자열
@@ -1192,12 +1205,10 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    // 현재 로그인 사용자의 기본 Workplace를
    // 최신 사용자 정보(회사명, 시급) 기준으로 동기화합니다.
-
    // 원칙: workplaces가 비어 있으면 새로 생성
    // 이미 있으면 0번 기본 Workplace를 새 객체로 교체
    // 기존 Shift는 그대로 유지
    // 이후 새로 생성되는 Shift부터 최신 Workplace를 사용 >준혁
-
    private void syncDefaultWorkplaceFromUserInfo() {
       if (loggedInUser == null) {
          throw new IllegalStateException("로그인된 사용자가 없습니다.");
@@ -1213,13 +1224,12 @@ public class WorkerCalendarAppFinal extends JFrame {
 
    /**
     * 현재 선택된 근무지 필터를 적용한 Shift 목록 반환
-    * 
+    *
     * 실제 필터링 로직은 ShiftManager에 위임
-    * 
+    *
     * @return 필터 적용된 Shift 목록
     */
    private List<Shift> getFilteredShifts() {
-      // 로그인 사용자가 없으면 빈 리스트 반환
       if (loggedInUser == null) {
          return new ArrayList<>();
       }
@@ -1320,12 +1330,10 @@ public class WorkerCalendarAppFinal extends JFrame {
       alarmTimer = new javax.swing.Timer(30000, new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            // 로그인 안 되어 있거나 트레이가 준비되지 않았으면 중단
             if (loggedInUser == null || trayIcon == null) {
                return;
             }
 
-            // Shift 목록이 없으면 검사할 데이터가 없음
             if (loggedInUser.shifts == null || loggedInUser.shifts.isEmpty()) {
                return;
             }
@@ -1333,27 +1341,22 @@ public class WorkerCalendarAppFinal extends JFrame {
             LocalDate today = LocalDate.now();
             LocalDateTime now = LocalDateTime.now();
 
-            // 이제부터는 Schedule이 아니라 Shift를 기준으로 검사
             for (Shift shift : loggedInUser.shifts) {
                try {
-                  // 휴무는 알림 대상 아님
                   if (shift.getShiftType() == ShiftType.OFF) {
                      continue;
                   }
 
-                  // 오늘 시작하는 근무만 검사
                   if (!shift.getStartTime().toLocalDate().equals(today)) {
                      continue;
                   }
 
-                  // 이미 알림 보낸 Shift면 건너뜀
                   if (notifiedShiftIds.contains(shift.getId())) {
                      continue;
                   }
 
                   long minutesLeft = ChronoUnit.MINUTES.between(now, shift.getStartTime());
 
-                  // 출근 30분 전~직전까지만 알림
                   if (minutesLeft >= 0 && minutesLeft <= 30) {
                      String shiftLabel = convertModelShiftTypeToUi(shift.getShiftType());
 
@@ -1361,7 +1364,6 @@ public class WorkerCalendarAppFinal extends JFrame {
                            "오늘 " + shiftLabel + " 시작까지 약 " + minutesLeft + "분 남았습니다! 준비하세요!",
                            TrayIcon.MessageType.INFO);
 
-                     // 중복 알림 방지
                      notifiedShiftIds.add(shift.getId());
 
                      System.out.println("[디버그] Shift 알림 전송 완료: " + shift.getId());
@@ -1399,53 +1401,31 @@ public class WorkerCalendarAppFinal extends JFrame {
    // 역할: - ShiftType별 급여 계산 전략 맵 구성 - SalaryEngine 생성 - StatisticsService 생성 -
    // StorageService 생성
    // UI에서는 앞으로 급여 계산/통계/CSV 저장을 직접 구현하지 않고 이 서비스 객체들을 사용해야 함
-
    private void initializeBackendServices() {
-      // ShiftType별 급여 전략을 담을 맵
       Map<ShiftType, SalaryStrategy> strategyMap = new HashMap<>();
 
-      // DAY / NIGHT는 시급 기반 계산
       strategyMap.put(ShiftType.DAY, new HourlySalaryStrategy());
       strategyMap.put(ShiftType.NIGHT, new HourlySalaryStrategy());
-
-      // OFF는 0원 처리
       strategyMap.put(ShiftType.OFF, new OffSalaryStrategy());
 
-      // 급여 엔진 생성
       salaryEngine = new SalaryEngine(strategyMap);
-
-      // 통계 서비스 생성
       statisticsService = new StatisticsService(salaryEngine);
 
-      // 저장 서비스 생성
-      // 현재 앱은 직렬화(.dat) 저장 방식을 사용 중이므로 아직 연결하지 않음
-      // 추후 CSV 저장 구조로 전환할 때 StorageService를 연결할 예정
       // storageService = new StorageService();
 
-      // 근무지 로직 관리자 생성
       workplaceManager = new WorkplaceManager();
-
-      // Shift 로직 관리자 생성
       shiftManager = new ShiftManager();
-
-      // 대시보드 패널 생성
       dashboardPanel = new DashboardPanel(statisticsService);
    }
 
    /**
-    * 컨트롤러 초기화 역할: - 근무지 관련 흐름을 WorkerCalendarAppFinal 밖으로 분리하기 위해
-    * WorkplaceController를 생성합니다. 주의: - model.Workplace를 새로 만드는 것이 아니라, 기존
-    * Workplace 모델을 사용하는 흐름 제어 객체를 만드는 것입니다.
-    */
-   /**
     * 컨트롤러 초기화
-    * 
+    *
     * 역할: - 메인 클래스에 몰려 있는 근무지/일정 처리 로직을 각 컨트롤러로 분리하기 위해 생성한다.
     */
    private void initializeControllers() {
       workplaceController = new WorkplaceController(this, workplaceManager,
 
-            // 현재 로그인 사용자 데이터 제공
             () -> {
                if (loggedInUser == null) {
                   return null;
@@ -1455,11 +1435,8 @@ public class WorkerCalendarAppFinal extends JFrame {
                      loggedInUser.shifts);
             },
 
-            // 저장 처리
             () -> saveDataToFile(),
 
-            // 화면 갱신 처리
-            // 화면 갱신 처리
             // 역할:
             // - 근무지 추가/수정/삭제가 끝난 뒤
             //   왼쪽 사이드바 목록을 다시 그리고
@@ -1471,7 +1448,6 @@ public class WorkerCalendarAppFinal extends JFrame {
 
       shiftController = new ShiftController(this, shiftManager, workplaceManager,
 
-            // 현재 로그인 사용자 데이터 제공
             () -> {
                if (loggedInUser == null) {
                   return null;
@@ -1481,10 +1457,8 @@ public class WorkerCalendarAppFinal extends JFrame {
                      loggedInUser.shifts);
             },
 
-            // 저장 처리
             () -> saveDataToFile(),
 
-            // 화면 갱신 처리
             () -> refreshCalendarView());
    }
 
@@ -1500,6 +1474,5 @@ public class WorkerCalendarAppFinal extends JFrame {
             app.setVisible(true);
          }
       });
-
    }
 }

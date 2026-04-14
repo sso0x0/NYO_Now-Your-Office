@@ -10,10 +10,13 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
+import ui.WorkerCalendarAppFinal.ModernButton;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Component;
@@ -108,6 +111,12 @@ public class CalendarPanel extends JPanel {
       void onDateSelected(String dateString);
 
       void onScheduleClicked(String scheduleId, String dateString);
+
+      // 상단 우측 버튼 콜백
+      void onBoardClicked();
+      void onMyPageClicked();
+      void onExportClicked();
+      void onLogoutClicked();
    }
 
    private final Color colorBackgroundGray;
@@ -238,7 +247,57 @@ public class CalendarPanel extends JPanel {
       centerNav.add(nextBtn);
 
       header.add(centerNav, BorderLayout.WEST);
+
+      // 상단 우측 버튼 패널
+      JPanel quickActionPanel = createQuickActionPanel();
+      header.add(quickActionPanel, BorderLayout.EAST);
+
       return header;
+   }
+
+   /**
+    * 상단 우측 버튼 패널 생성
+    */
+   private JPanel createQuickActionPanel() {
+      JPanel quickActionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+      quickActionPanel.setBackground(colorBackgroundGray);
+      quickActionPanel.setBorder(new EmptyBorder(5, 0, 0, 0));
+
+      ModernButton boardButton = new ModernButton("통합 게시판", Color.WHITE, new Color(31, 41, 55));
+      ModernButton myPageButton = new ModernButton("마이페이지", Color.WHITE, new Color(31, 41, 55));
+      ModernButton exportButton = new ModernButton("명세서 추출", new Color(15, 118, 110), colorCardWhite);
+      ModernButton logoutButton = new ModernButton("로그아웃", new Color(239, 68, 68), colorCardWhite);
+
+      boardButton.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(229, 231, 235), 1, true),
+            new EmptyBorder(4, 10, 4, 10)));
+      myPageButton.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(229, 231, 235), 1, true),
+            new EmptyBorder(4, 10, 4, 10)));
+
+      // 외부(WorkerCalendarAppFinal)로 신호만 보냅니다.
+      boardButton.addActionListener(e -> {
+         if (listener != null) listener.onBoardClicked();
+      });
+
+      myPageButton.addActionListener(e -> {
+         if (listener != null) listener.onMyPageClicked();
+      });
+
+      exportButton.addActionListener(e -> {
+         if (listener != null) listener.onExportClicked();
+      });
+
+      logoutButton.addActionListener(e -> {
+         if (listener != null) listener.onLogoutClicked();
+      });
+
+      quickActionPanel.add(boardButton);
+      quickActionPanel.add(myPageButton);
+      quickActionPanel.add(exportButton);
+      quickActionPanel.add(logoutButton);
+
+      return quickActionPanel;
    }
 
    /**
@@ -294,7 +353,7 @@ public class CalendarPanel extends JPanel {
 
    /**
     * 하단 상세 카드 영역 생성
-    * 
+    *
     * 역할:
     * - 오늘 일정 카드와 선택한 날짜 일정 카드를
     *   한 줄에 좌우로 나란히 배치합니다.
@@ -342,12 +401,11 @@ public class CalendarPanel extends JPanel {
          if (dateString.equals(selectedDateString)) {
             dayCell.setBackground(new Color(239, 246, 255));
          } else if (dateString.equals(currentDateString)) {
-             // 오늘 날짜
-             dayCell.setBackground(new Color(200, 225, 255)); // 원하는 색으로 바꿔도 됨
-
+            // 오늘 날짜
+            dayCell.setBackground(new Color(200, 225, 255));
          } else {
-             // 기본
-             dayCell.setBackground(colorCardWhite);
+            // 기본
+            dayCell.setBackground(colorCardWhite);
          }
          dayCell.setBorder(BorderFactory.createLineBorder(new Color(229, 231, 235), 1));
 
@@ -487,9 +545,9 @@ public class CalendarPanel extends JPanel {
 
    /**
     * 하단 상세 카드 영역을 새로고침합니다.
-    * 
+    *
     * 역할: - 첫 번째 카드는 오늘 일정 - 두 번째 카드는 현재 선택한 날짜의 일정 을 보여줍니다.
-    * 
+    *
     * 왜 필요한가? - currentDateString과 selectedDateString의 의미를 UI에서 분명하게 구분해 사용자 혼란을
     * 줄이기 위함입니다.
     */
@@ -508,9 +566,9 @@ public class CalendarPanel extends JPanel {
 
    /**
     * 날짜별 상세 카드 하나를 생성합니다.
-    * 
+    *
     * 역할: - 카드 제목(예: 오늘 일정, 선택한 날짜 일정)을 표시합니다. - 해당 날짜의 일정 목록을 보여줍니다.
-    * 
+    *
     * @param titleText 카드 상단 제목
     * @param dateStr   표시할 날짜 문자열
     * @return 생성된 상세 카드 패널
@@ -558,10 +616,11 @@ public class CalendarPanel extends JPanel {
       for (CalendarScheduleItem schedule : getSchedulesForDate(dateStr)) {
          hasEvent = true;
 
+         // 일정 색상을 badgeColor로 표시 (신버전 반영)
          JLabel shiftLabel = new JLabel(
                "• " + schedule.getShiftType() + "  " + schedule.getStartTime() + " ~ " + schedule.getEndTime());
          shiftLabel.setFont(new Font("맑은 고딕", Font.BOLD, 13));
-         shiftLabel.setForeground(new Color(31, 41, 55));
+         shiftLabel.setForeground(schedule.getBadgeColor());
 
          JLabel workplaceLabel = new JLabel("  근무지: " + schedule.getWorkplaceName());
          workplaceLabel.setFont(new Font("맑은 고딕", Font.PLAIN, 12));

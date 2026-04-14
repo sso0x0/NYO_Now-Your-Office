@@ -24,7 +24,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
 public class DeleteWorkplaceDialog extends JDialog {
-//test
+	
     private static final Color COLOR_BG        = Color.WHITE;
     private static final Color COLOR_CARD      = Color.WHITE;
     private static final Color COLOR_TEXT_DARK = new Color(25, 31, 40);
