@@ -1,0 +1,154 @@
+package ui;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
+
+public class SelectWorkplaceForEditDialog extends JDialog {
+
+    private static final Color COLOR_BG        = Color.WHITE; // 배경색 흰색으로 통일
+    private static final Color COLOR_CARD      = Color.WHITE;
+    private static final Color COLOR_TEXT_DARK = new Color(25, 31, 40);
+    private static final Color COLOR_TEXT_GRAY = new Color(139, 149, 161);
+    private static final Color COLOR_BLUE      = new Color(49, 130, 246);
+    private static final Color COLOR_BORDER    = new Color(229, 229, 234);
+    private static final Font  FONT_TITLE      = new Font("맑은 고딕", Font.BOLD, 15);
+    private static final Font  FONT_LABEL      = new Font("맑은 고딕", Font.BOLD, 12);
+
+    private static class ModernButton extends JButton {
+        public ModernButton(String text, Color bg, Color fg) {
+            super(text);
+            setContentAreaFilled(false); setFocusPainted(false); setBorderPainted(false);
+            setForeground(fg); setBackground(bg);
+            setFont(new Font("맑은 고딕", Font.BOLD, 13));
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+        }
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground());
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+            super.paintComponent(g); g2.dispose();
+        }
+    }
+
+    public interface OnNextListener { void onNext(String selectedWorkplaceText); }
+
+    private final Frame          parentFrame;
+    private final List<String>   workplaceDisplayList;
+    private final OnNextListener onNextListener;
+    private JComboBox<String>    workplaceDropdown;
+
+    public SelectWorkplaceForEditDialog(Frame parentFrame, List<String> workplaceDisplayList, OnNextListener onNextListener) {
+        super(parentFrame, true);
+        this.parentFrame = parentFrame; this.workplaceDisplayList = workplaceDisplayList;
+        this.onNextListener = onNextListener;
+        initializeDialog(); initializeUI();
+    }
+
+    private void initializeDialog() {
+        setTitle("근무지 수정");
+        setSize(380, 230); // 사이즈 조정
+        setLocationRelativeTo(parentFrame);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        getContentPane().setBackground(COLOR_BG);
+    }
+
+    private void initializeUI() {
+        setLayout(new BorderLayout());
+
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(COLOR_BG);
+        outer.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(COLOR_CARD);
+
+        // [1] 타이틀
+        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 18, 14));
+        titleRow.setBackground(COLOR_CARD);
+        JLabel titleLbl = new JLabel("✏️ 근무지 수정");
+        titleLbl.setFont(FONT_TITLE); titleLbl.setForeground(COLOR_TEXT_DARK);
+        titleRow.add(titleLbl);
+
+        // [2] 폼
+        JPanel form = new JPanel(new BorderLayout(0, 10));
+        form.setBackground(COLOR_CARD);
+        form.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        JLabel guideLbl = new JLabel("수정할 근무지를 선택해주세요.");
+        guideLbl.setFont(FONT_LABEL); guideLbl.setForeground(COLOR_TEXT_GRAY);
+
+        workplaceDropdown = new JComboBox<>();
+        workplaceDropdown.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
+        workplaceDropdown.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(COLOR_BORDER, 1, true), new EmptyBorder(2, 6, 2, 6)));
+        if (workplaceDisplayList != null)
+            for (String item : workplaceDisplayList) workplaceDropdown.addItem(item);
+
+        form.add(guideLbl, BorderLayout.NORTH);
+        form.add(workplaceDropdown, BorderLayout.CENTER);
+
+        // [3] 버튼
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 12));
+        btnRow.setBackground(COLOR_CARD);
+        ModernButton nextBtn   = new ModernButton("다음", COLOR_BLUE, Color.WHITE);
+        ModernButton cancelBtn = new ModernButton("취소", new Color(233, 236, 239), COLOR_TEXT_DARK);
+        nextBtn.setPreferredSize(new Dimension(88, 34));
+        cancelBtn.setPreferredSize(new Dimension(88, 34));
+        nextBtn.addActionListener(e   -> handleNext());
+        cancelBtn.addActionListener(e -> dispose());
+        btnRow.add(cancelBtn); btnRow.add(nextBtn);
+
+        card.add(titleRow);
+        card.add(makeDivider());
+        card.add(form);
+        // card.add(makeDivider()); // 버튼 위 실선 제거
+        card.add(btnRow);
+
+        outer.add(card, BorderLayout.CENTER);
+        add(outer, BorderLayout.CENTER);
+    }
+
+    private JPanel makeDivider() {
+        JPanel d = new JPanel(); d.setBackground(COLOR_CARD);
+        d.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, COLOR_BORDER));
+        d.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1)); return d;
+    }
+
+    private void handleNext() {
+        try {
+            String sel = workplaceDropdown.getSelectedItem() != null
+                    ? workplaceDropdown.getSelectedItem().toString() : "";
+            if (sel.isBlank()) throw new IllegalArgumentException("수정할 근무지를 선택해주세요.");
+            if (onNextListener != null) onNextListener.onNext(sel);
+            dispose();
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "근무지 선택 처리 중 오류가 발생했습니다.");
+        }
+    }
+
+    public void showDialog() { setVisible(true); }
+}
